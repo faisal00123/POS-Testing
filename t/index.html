@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperMart POS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0f1e;
+    --sidebar-bg: #060b18;
+    --card: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.08);
+    --text: #f1f5f9;
+    --muted: #64748b;
+    --primary: #3b82f6;
+    --primary-dim: rgba(59,130,246,0.15);
+    --secondary: #10b981;
+    --secondary-dim: rgba(16,185,129,0.15);
+    --accent: #f59e0b;
+    --accent-dim: rgba(245,158,11,0.15);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.15);
+    --purple: #a855f7;
+    --input-bg: rgba(255,255,255,0.05);
+    --modal-bg: #0d1426;
+    --radius: 12px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s, min-width 0.3s;
+    z-index: 20;
+    overflow: hidden;
+  }
+  #sidebar.collapsed { width: 72px; min-width: 72px; }
+
+  .sidebar-logo {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .logo-icon {
+    width: 32px; height: 32px; min-width: 32px;
+    background: var(--primary);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 16px;
+  }
+  .logo-text { font-size: 18px; font-weight: 900; letter-spacing: 0.1em; color: white; }
+
+  nav { flex: 1; padding: 16px 8px; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+    font-size: 14px; font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+  .nav-item.active { background: rgba(59,130,246,0.15); color: var(--primary); font-weight: 600; }
+  .nav-icon { min-width: 18px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+  #sidebar.collapsed .nav-label { display: none; }
+  #sidebar.collapsed .logo-text { display: none; }
+  #sidebar.collapsed .nav-item { justify-content: center; padding: 12px; }
+
+  .sidebar-toggle {
+    border-top: 1px solid var(--border);
+    padding: 12px;
+  }
+  .toggle-btn {
+    width: 100%; padding: 8px;
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    border-radius: 8px; font-size: 18px;
+    transition: all 0.15s;
+  }
+  .toggle-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+
+  /* MAIN */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  header {
+    height: 60px; min-height: 60px;
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar-bg);
+    display: flex; align-items: center;
+    padding: 0 24px;
+  }
+  header h1 { font-size: 15px; font-weight: 700; color: white; text-transform: capitalize; }
+
+  #content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+  }
+
+  /* STAT CARD */
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card-glow {
+    position: absolute; top: 0; right: 0;
+    width: 80px; height: 80px;
+    border-radius: 0 0 0 80px;
+    opacity: 0.15;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 900; color: white; line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .stat-trend { margin-top: 12px; font-size: 12px; font-weight: 600; }
+  .trend-up { color: var(--secondary); }
+  .trend-down { color: var(--danger); }
+
+  /* BADGE */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid;
+  }
+  .badge-green { background: var(--secondary-dim); border-color: rgba(16,185,129,0.3); color: var(--secondary); }
+  .badge-red { background: var(--danger-dim); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+  .badge-amber { background: var(--accent-dim); border-color: rgba(245,158,11,0.3); color: var(--accent); }
+  .badge-blue { background: var(--primary-dim); border-color: rgba(59,130,246,0.3); color: var(--primary); }
+  .badge-purple { background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.3); color: var(--purple); }
+  .badge-gray { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--muted); }
+
+  /* GRID */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .grid-3-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .gap-4 { gap: 16px; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: var(--secondary); color: white; }
+  .btn-secondary:hover { opacity: 0.9; }
+  .btn-ghost { background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); }
+  .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+  .btn-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+  .btn-icon { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; transition: all 0.15s; font-size: 14px; }
+  .btn-icon-primary { background: var(--primary-dim); color: var(--primary); }
+  .btn-icon-primary:hover { background: rgba(59,130,246,0.25); }
+  .btn-icon-danger { background: var(--danger-dim); color: var(--danger); }
+  .btn-icon-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-icon-amber { background: var(--accent-dim); color: var(--accent); }
+  .btn-icon-amber:hover { background: rgba(245,158,11,0.25); }
+
+  /* INPUTS */
+  .input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: white; font-size: 14px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .input::placeholder { color: var(--muted); }
+  .input:focus { border-color: rgba(59,130,246,0.5); }
+  .input-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .search-wrap { position: relative; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 14px; }
+  .search-wrap .input { padding-left: 36px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; white-space: nowrap; }
+  thead { background: rgba(0,0,0,0.4); }
+  th { padding: 12px 16px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  tr:last-child td { border-bottom: none; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; padding: 16px;
+  }
+  .modal {
+    background: var(--modal-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    width: 100%; max-width: 440px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .modal-body { padding: 20px; }
+  .modal-footer { display: flex; gap: 12px; }
+  .close-btn {
+    width: 28px; height: 28px;
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    border-radius: 8px; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .close-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+  /* TOAST */
+  #toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    z-index: 999; display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    background: #1e293b;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: white; font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: slideIn 0.2s ease;
+    min-width: 260px;
+  }
+  .toast.success { border-left: 3px solid var(--secondary); }
+  .toast.error { border-left: 3px solid var(--danger); }
+  .toast-title { font-weight: 700; margin-bottom: 2px; }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* MISC */
+  .space-y > * + * { margin-top: 16px; }
+  .space-y-sm > * + * { margin-top: 8px; }
+  .flex { display: flex; }
+  .flex-col { flex-direction: column; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .justify-center { justify-content: center; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .flex-1 { flex: 1; }
+  .min-w-0 { min-width: 0; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .text-xs { font-size: 12px; }
+  .text-sm { font-size: 13px; }
+  .text-base { font-size: 15px; }
+  .text-lg { font-size: 18px; }
+  .text-xl { font-size: 20px; }
+  .font-bold { font-weight: 700; }
+  .font-black { font-weight: 900; }
+  .text-white { color: white; }
+  .text-muted { color: var(--muted); }
+  .text-primary { color: var(--primary); }
+  .text-secondary { color: var(--secondary); }
+  .text-danger { color: var(--danger); }
+  .text-accent { color: var(--accent); }
+  .text-purple { color: var(--purple); }
+  .mb-1 { margin-bottom: 4px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mb-3 { margin-bottom: 12px; }
+  .mb-4 { margin-bottom: 16px; }
+  .mb-6 { margin-bottom: 24px; }
+  .mt-1 { margin-top: 4px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-4 { margin-top: 16px; }
+  .p-4 { padding: 16px; }
+  .p-5 { padding: 20px; }
+  .py-2 { padding-top: 8px; padding-bottom: 8px; }
+  .py-3 { padding-top: 12px; padding-bottom: 12px; }
+  .w-full { width: 100%; }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .relative { position: relative; }
+  .hidden { display: none; }
+  .separator { border-top: 1px solid var(--border); }
+
+  /* FORM GROUP */
+  .form-group { margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  select.input { cursor: pointer; }
+  select.input option { background: var(--modal-bg); }
+
+  /* POS */
+  #pos-layout { display: flex; gap: 16px; height: calc(100vh - 110px); }
+  #pos-products { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  #pos-cart {
+    width: 380px; min-width: 380px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .product-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .product-card:hover { border-color: rgba(59,130,246,0.4); transform: translateY(-2px); }
+  .product-card.out-of-stock { opacity: 0.5; cursor: not-allowed; }
+  .product-emoji { font-size: 36px; text-align: center; margin-bottom: 10px; }
+  .product-name { font-size: 12px; font-weight: 600; color: white; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product-sku { font-size: 11px; color: var(--muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product-price { font-size: 14px; font-weight: 900; color: var(--primary); margin-bottom: 8px; }
+
+  .cart-header { padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+  .cart-items { flex: 1; overflow-y: auto; padding: 8px; }
+  .cart-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; transition: background 0.1s; }
+  .cart-item:hover { background: rgba(255,255,255,0.04); }
+  .cart-item-emoji { font-size: 24px; }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .qty-ctrl { display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 4px; }
+  .qty-btn { width: 24px; height: 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+  .qty-dec { background: rgba(255,255,255,0.05); color: white; }
+  .qty-dec:hover { background: rgba(255,255,255,0.1); }
+  .qty-inc { background: var(--primary-dim); color: var(--primary); }
+  .qty-inc:hover { background: rgba(59,130,246,0.25); }
+  .qty-val { width: 24px; text-align: center; font-size: 14px; font-weight: 700; color: white; }
+  .cart-footer { background: rgba(0,0,0,0.3); border-top: 1px solid var(--border); padding: 16px; }
+  .totals-row { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .totals-total { display: flex; justify-content: space-between; font-size: 20px; font-weight: 900; color: white; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; }
+  .cart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); opacity: 0.7; }
+  .discount-row { display: flex; gap: 8px; margin-bottom: 16px; }
+
+  /* CATEGORY PILLS */
+  .pill-row { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .pill {
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    border: none; transition: all 0.15s;
+    color: var(--muted); background: rgba(255,255,255,0.05);
+  }
+  .pill:hover { color: white; }
+  .pill.active { background: var(--primary-dim); color: var(--primary); }
+  .pill.active-green { background: var(--secondary-dim); color: var(--secondary); }
+
+  /* CUSTOMER CARDS */
+  .customer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .customer-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color 0.15s;
+  }
+  .customer-card:hover { border-color: rgba(255,255,255,0.12); }
+  .avatar {
+    width: 48px; height: 48px; min-width: 48px;
+    border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 20px; color: white;
+    background: linear-gradient(135deg, var(--primary), var(--purple));
+    position: relative;
+  }
+  .avatar-emp { background: linear-gradient(135deg, var(--secondary), #3b82f6); }
+  .tier-badge { position: absolute; bottom: -4px; right: -4px; font-size: 14px; }
+
+  /* RECEIPT */
+  .receipt-wrap { background: white; color: black; font-family: monospace; width: 320px; border-radius: 8px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); }
+  .receipt-header { text-align: center; border-bottom: 1px dashed #aaa; padding-bottom: 12px; margin-bottom: 12px; }
+  .receipt-title { font-size: 22px; font-weight: 900; letter-spacing: 0.2em; }
+  .receipt-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+  .receipt-table th, .receipt-table td { padding: 2px 0; }
+  .receipt-footer { text-align: center; font-size: 10px; color: #666; border-top: 1px dashed #aaa; padding-top: 12px; margin-top: 12px; }
+
+  /* SPINNER */
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .title { font-size: 16px; font-weight: 600; color: white; margin-bottom: 6px; }
+
+  /* CHART PLACEHOLDER */
+  .chart-area { height: 240px; display: flex; align-items: center; justify-content: center; }
+  .simple-chart { display: flex; align-items: flex-end; gap: 6px; height: 200px; width: 100%; }
+  .chart-bar { flex: 1; border-radius: 4px 4px 0 0; min-width: 20px; transition: opacity 0.2s; }
+  .chart-bar:hover { opacity: 0.8; }
+  .chart-labels { display: flex; gap: 6px; margin-top: 8px; }
+  .chart-label { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+
+  /* PIE CHART */
+  .pie-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; justify-content: center; }
+  .pie-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  /* TOGGLE */
+  .toggle-switch {
+    width: 44px; height: 24px; background: rgba(255,255,255,0.1);
+    border-radius: 999px; position: relative; cursor: pointer;
+    transition: background 0.2s; border: none;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: white; transition: left 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .toggle-switch.on .toggle-knob { left: 22px; }
+
+  /* FILTER PILLS */
+  .filter-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .filter-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-right: 2px; }
+
+  /* SCAN BAR ANIMATION */
+  @keyframes scanLine { 0%,100%{ top: 30%; } 50%{ top: 60%; } }
+  .scan-line { position: absolute; left: 10%; right: 10%; height: 2px; background: rgba(59,130,246,0.7); animation: scanLine 1.5s ease-in-out infinite; box-shadow: 0 0 8px rgba(59,130,246,0.5); }
+
+  /* PROFIT CARDS in inventory */
+  .inv-stat { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px; }
+  .inv-stat.b-primary { border-left: 4px solid var(--primary); }
+  .inv-stat.b-secondary { border-left: 4px solid var(--secondary); }
+  .inv-stat.b-accent { border-left: 4px solid var(--accent); }
+  .inv-stat.b-danger { border-left: 4px solid var(--danger); }
+
+  /* EMOJI PICKER */
+  .emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .emoji-opt {
+    width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--input-bg); cursor: pointer; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+  }
+  .emoji-opt:hover, .emoji-opt.selected { border-color: var(--primary); background: var(--primary-dim); }
+
+  /* ROLE COLOR MAP */
+  .role-manager { color: var(--purple); }
+  .role-supervisor { color: #60a5fa; }
+  .role-cashier { color: var(--primary); }
+  .role-stockboy { color: var(--secondary); }
+  .role-security { color: var(--accent); }
+  .role-accountant { color: #fb923c; }
+
+  /* REPORT CARDS */
+  .report-card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: border-color 0.15s; }
+  .report-card:hover { border-color: rgba(59,130,246,0.4); }
+
+  @media (max-width: 1200px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 768px) { .grid-4, .grid-3, .grid-2, .grid-3-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🏪</div>
+    <div class="logo-text">SUPERMART</div>
+  </div>
+  <nav>
+    <div class="nav-item active" onclick="navigate('dashboard')"><div class="nav-icon">🏠</div><span class="nav-label">Dashboard</span></div>
+    <div class="nav-item" onclick="navigate('pos')"><div class="nav-icon">🛒</div><span class="nav-label">Point of Sale</span></div>
+    <div class="nav-item" onclick="navigate('inventory')"><div class="nav-icon">📦</div><span class="nav-label">Inventory</span></div>
+    <div class="nav-item" onclick="navigate('customers')"><div class="nav-icon">👥</div><span class="nav-label">Customers</span></div>
+    <div class="nav-item" onclick="navigate('employees')"><div class="nav-icon">👷</div><span class="nav-label">Employees</span></div>
+    <div class="nav-item" onclick="navigate('reports')"><div class="nav-icon">📊</div><span class="nav-label">Reports</span></div>
+    <div class="nav-item" onclick="navigate('settings')"><div class="nav-icon">⚙️</div><span class="nav-label">Settings</span></div>
+  </nav>
+  <div class="sidebar-toggle">
+    <button class="toggle-btn" onclick="toggleSidebar()" id="sidebar-toggle-btn">◀</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div id="main">
+  <header><h1 id="page-title">Dashboard</h1></header>
+  <div id="content"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA STORE (localStorage)
+// ═══════════════════════════════════════════════
+const STORE_KEY = 'supermart_data';
+
+function getStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; }
+}
+function saveStore(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+function initStore() {
+  const s = getStore();
+  if (!s.products) {
+    s.products = [
+      {id:1,name:"Full Cream Milk 1L",sku:"MLK-001",barcode:"6110003101001",category:"Dairy",brand:"Olpers",price:280,cost:220,stock:45,reorderLevel:10,emoji:"🥛"},
+      {id:2,name:"Brown Bread Loaf",sku:"BRD-002",barcode:"6110003102002",category:"Bakery",brand:"Dawn",price:120,cost:85,stock:30,reorderLevel:10,emoji:"🍞"},
+      {id:3,name:"Orange Juice 1L",sku:"JUS-003",barcode:"6110003103003",category:"Beverages",brand:"Shezan",price:180,cost:130,stock:25,reorderLevel:8,emoji:"🧃"},
+      {id:4,name:"Mineral Water 1.5L",sku:"WTR-004",barcode:"6110003104004",category:"Beverages",brand:"Nestle",price:60,cost:40,stock:100,reorderLevel:20,emoji:"💧"},
+      {id:5,name:"Lays Chips 100g",sku:"SNK-005",barcode:"6110003105005",category:"Snacks",brand:"Lays",price:85,cost:60,stock:60,reorderLevel:15,emoji:"🥔"},
+      {id:6,name:"Eggs Dozen",sku:"EGG-006",barcode:"6110003106006",category:"Dairy",brand:"Farm Fresh",price:350,cost:290,stock:20,reorderLevel:10,emoji:"🥚"},
+      {id:7,name:"Basmati Rice 5kg",sku:"RCE-007",barcode:"6110003107007",category:"Other",brand:"Shaheen",price:1200,cost:950,stock:15,reorderLevel:5,emoji:"🍚"},
+      {id:8,name:"Surf Excel 1kg",sku:"DET-008",barcode:"6110003108008",category:"Household",brand:"Surf",price:450,cost:360,stock:3,reorderLevel:5,emoji:"🧴"},
+      {id:9,name:"Dettol Soap",sku:"SOP-009",barcode:"6110003109009",category:"Personal Care",brand:"Dettol",price:95,cost:70,stock:0,reorderLevel:10,emoji:"🧼"},
+      {id:10,name:"Panadol 10s",sku:"MED-010",barcode:"6110003110010",category:"Pharmacy",brand:"GSK",price:80,cost:55,stock:40,reorderLevel:15,emoji:"💊"},
+      {id:11,name:"Butter 200g",sku:"BUT-011",barcode:"6110003111011",category:"Dairy",brand:"Nurpur",price:320,cost:260,stock:12,reorderLevel:8,emoji:"🧈"},
+      {id:12,name:"Pepsi 1.5L",sku:"PEP-012",barcode:"6110003112012",category:"Beverages",brand:"Pepsi",price:150,cost:105,stock:50,reorderLevel:12,emoji:"🥤"},
+    ];
+    s.customers = [
+      {id:1,name:"Ahmed Khan",phone:"0300-1234567",email:"ahmed@email.com",loyaltyPoints:520,totalPurchases:25000,createdAt:new Date().toISOString()},
+      {id:2,name:"Sara Ali",phone:"0311-9876543",email:"sara@email.com",loyaltyPoints:120,totalPurchases:6000,createdAt:new Date().toISOString()},
+      {id:3,name:"Bilal Raza",phone:"0321-5554444",email:"",loyaltyPoints:45,totalPurchases:2200,createdAt:new Date().toISOString()},
+    ];
+    s.employees = [
+      {id:1,name:"Usman Ali",role:"Manager",shift:"Morning",status:"active",createdAt:new Date().toISOString()},
+      {id:2,name:"Fatima Noor",role:"Cashier",shift:"Morning",status:"active",createdAt:new Date().toISOString()},
+      {id:3,name:"Hassan Sheikh",role:"Stock Boy",shift:"Afternoon",status:"active",createdAt:new Date().toISOString()},
+      {id:4,name:"Zara Malik",role:"Supervisor",shift:"Evening",status:"inactive",createdAt:new Date().toISOString()},
+    ];
+    s.sales = [
+      {id:1,invoiceNo:"INV-000001",customerId:1,customerName:"Ahmed Khan",subtotal:560,discountAmount:0,redeemedPoints:0,tax:28,total:588,amountPaid:600,change:12,paymentMethod:"Cash",items:[{productId:1,productName:"Full Cream Milk 1L",qty:2,unitPrice:280,lineTotal:560}],createdAt:new Date(Date.now()-86400000).toISOString()},
+      {id:2,invoiceNo:"INV-000002",customerId:null,customerName:null,subtotal:335,discountAmount:0,redeemedPoints:0,tax:17,total:352,amountPaid:400,change:48,paymentMethod:"Cash",items:[{productId:2,productName:"Brown Bread Loaf",qty:1,unitPrice:120,lineTotal:120},{productId:6,productName:"Eggs Dozen",qty:1,unitPrice:350,lineTotal:350}],createdAt:new Date(Date.now()-3600000).toISOString()},
+    ];
+    s.nextId = {products:13,customers:4,employees:5,sales:3};
+    saveStore(s);
+  }
+  return s;
+}
+
+let DB = initStore();
+
+function nextId(type) { DB.nextId[type] = (DB.nextId[type]||1)+1; saveStore(DB); return DB.nextId[type]-1; }
+function save() { saveStore(DB); }
+
+// ═══════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════
+const fmt = n => `Rs. ${Number(n||0).toLocaleString('en-PK')}`;
+const fmtShort = n => n >= 1000 ? `${(n/1000).toFixed(1)}K` : n;
+
+function toast(msg, type='success') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<div class="toast-title">${type==='error'?'Error':'Success'}</div><div>${msg}</div>`;
+  c.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2800);
+}
+
+function genInvoice() {
+  const count = DB.sales.length + 1;
+  return `INV-${String(count).padStart(6,'0')}`;
+}
+
+function custTier(pts) { return pts>=500?'Gold':pts>=100?'Silver':'Bronze'; }
+function tierEmoji(tier) { return tier==='Gold'?'🥇':tier==='Silver'?'🥈':'🥉'; }
+function tierColor(tier) { return tier==='Gold'?'text-accent':tier==='Silver'?'text-muted':''; }
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+let currentPage = 'dashboard';
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const items = document.querySelectorAll('.nav-item');
+  const pages = ['dashboard','pos','inventory','customers','employees','reports','settings'];
+  const idx = pages.indexOf(page);
+  if(items[idx]) items[idx].classList.add('active');
+  document.getElementById('page-title').textContent = page.replace('-',' ');
+  renderPage();
+}
+
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle-btn');
+  s.classList.toggle('collapsed');
+  btn.textContent = s.classList.contains('collapsed') ? '▶' : '◀';
+}
+
+// ═══════════════════════════════════════════════
+// PAGE RENDERER
+// ═══════════════════════════════════════════════
+function renderPage() {
+  const c = document.getElementById('content');
+  if(currentPage==='dashboard') c.innerHTML = renderDashboard();
+  else if(currentPage==='pos') c.innerHTML = renderPOS();
+  else if(currentPage==='inventory') c.innerHTML = renderInventory();
+  else if(currentPage==='customers') c.innerHTML = renderCustomers();
+  else if(currentPage==='employees') c.innerHTML = renderEmployees();
+  else if(currentPage==='reports') c.innerHTML = renderReports();
+  else if(currentPage==='settings') c.innerHTML = renderSettings();
+  attachEvents();
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════
+function renderDashboard() {
+  const todaySales = DB.sales.filter(s => new Date(s.createdAt).toDateString()===new Date().toDateString());
+  const todayTotal = todaySales.reduce((a,s)=>a+s.total,0);
+  const todayRev = todaySales.reduce((a,s)=>a+(s.total-s.discountAmount-(s.items.reduce((x,i)=>x+i.lineTotal*0.3,0))),0);
+  const invValue = DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
+  const lowStock = DB.products.filter(p=>p.stock<=p.reorderLevel);
+  const categories = [...new Set(DB.products.map(p=>p.category))];
+  const catColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#84cc16'];
+  const catData = categories.map((c,i)=>({name:c, value:DB.sales.reduce((a,s)=>a+s.items.filter(i=>DB.products.find(p=>p.id===i.productId)?.category===c).reduce((x,i)=>x+i.lineTotal,0),0)||1, color:catColors[i%catColors.length]}));
+  const totalCatVal = catData.reduce((a,c)=>a+c.value,0);
+
+  // Weekly data (last 7 days)
+  const weekDays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekData = Array.from({length:7},(_,i)=>{
+    const d = new Date(today); d.setDate(d.getDate()-6+i);
+    const daySales = DB.sales.filter(s=>new Date(s.createdAt).toDateString()===d.toDateString());
+    return { day: weekDays[d.getDay()===0?6:d.getDay()-1], sales: daySales.reduce((a,s)=>a+s.total,0) || Math.floor(Math.random()*8000+2000) };
+  });
+  const maxSales = Math.max(...weekData.map(d=>d.sales),1);
+
+  const recentSales = DB.sales.slice(-5).reverse();
+
+  return `
+  <div style="max-width:1400px;margin:0 auto;padding-bottom:40px;" class="space-y">
+    <div>
+      <h2 class="text-xl font-black text-white">Good ${new Date().getHours()<12?'Morning':new Date().getHours()<17?'Afternoon':'Evening'}, Admin 👋</h2>
+      <p class="text-sm text-muted mt-1">${new Date().toLocaleDateString('en-PK',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+    </div>
+
+    <div class="grid-4">
+      ${statCard("Today's Sales", fmt(todayTotal), `${todaySales.length} transactions`, '#3b82f6', '💰', 8)}
+      ${statCard("Revenue", fmt(Math.max(0,todayRev)), "After expenses", '#10b981', '📈', 3)}
+      ${statCard("Inventory Value", fmtShort(invValue), `${DB.products.length} products`, '#f59e0b', '📦', 0)}
+      ${statCard("Active Customers", DB.customers.length, "Registered users", '#a855f7', '👥', 5)}
+    </div>
+
+    <div class="grid-3-2">
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-4">Weekly Sales Trend</h3>
+        <div style="height:240px;">
+          <div class="simple-chart">
+            ${weekData.map(d=>`<div class="chart-bar" style="background:linear-gradient(to top,#3b82f6,#60a5fa);height:${Math.max(4,(d.sales/maxSales)*190)}px;" title="${d.day}: ${fmt(d.sales)}"></div>`).join('')}
+          </div>
+          <div class="chart-labels">${weekData.map(d=>`<div class="chart-label">${d.day}</div>`).join('')}</div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-4">Sales by Category</h3>
+        <div style="display:flex;align-items:center;justify-content:center;padding:16px 0;">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            ${renderPie(catData, totalCatVal)}
+            <circle cx="80" cy="80" r="40" fill="${'#0d1426'}"/>
+            <text x="80" y="85" text-anchor="middle" fill="white" font-size="11" font-weight="700">${categories.length} cats</text>
+          </svg>
+        </div>
+        <div class="pie-legend">
+          ${catData.slice(0,6).map(c=>`<div class="flex items-center gap-2 text-xs text-muted"><span class="pie-dot" style="background:${c.color}"></span>${c.name}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-4">Recent Transactions</h3>
+        <div class="space-y-sm">
+          ${recentSales.length ? recentSales.map(s=>`
+          <div class="flex justify-between items-center py-2" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+            <div><div class="text-sm font-bold text-white">${s.invoiceNo}</div><div class="text-xs text-muted">${s.customerName||'Walk-in'}</div></div>
+            <div class="text-right"><div class="text-sm font-bold text-secondary">${fmt(s.total)}</div><span class="badge ${s.paymentMethod==='Cash'?'badge-green':'badge-blue'}">${s.paymentMethod}</span></div>
+          </div>`).join('') : '<div class="text-center text-sm text-muted py-4">No recent sales</div>'}
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-4">⚠️ Low Stock Alerts</h3>
+        <div class="space-y-sm">
+          ${lowStock.length ? lowStock.slice(0,5).map(p=>`
+          <div class="flex justify-between items-center py-2" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+            <div class="flex items-center gap-3"><div style="font-size:24px">${p.emoji||'📦'}</div><div><div class="text-sm font-bold text-white">${p.name}</div><div class="text-xs text-muted">${p.sku}</div></div></div>
+            <span class="badge ${p.stock===0?'badge-red':'badge-amber'}">${p.stock===0?'OUT':p.stock+' left'}</span>
+          </div>`).join('') : '<div class="text-center text-sm text-muted py-4">✅ Inventory looks good!</div>'}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function statCard(label, value, sub, color, icon, trend) {
+  return `<div class="stat-card">
+    <div class="stat-card-glow" style="background:${color}"></div>
+    <div class="flex justify-between items-start">
+      <div>
+        <div class="stat-label">${label}</div>
+        <div class="stat-value">${value}</div>
+        <div class="stat-sub">${sub}</div>
+      </div>
+      <div class="stat-icon" style="background:${color}">${icon}</div>
+    </div>
+    ${trend!==0?`<div class="stat-trend ${trend>0?'trend-up':'trend-down'}">${trend>0?'▲':'▼'} ${Math.abs(trend)}% vs yesterday</div>`:''}
+  </div>`;
+}
+
+function renderPie(data, total) {
+  if(!total) return '';
+  let startAngle = -Math.PI/2;
+  return data.map(d => {
+    const pct = d.value/total;
+    const angle = pct * 2 * Math.PI;
+    const x1 = 80 + 60*Math.cos(startAngle);
+    const y1 = 80 + 60*Math.sin(startAngle);
+    const endAngle = startAngle + angle;
+    const x2 = 80 + 60*Math.cos(endAngle);
+    const y2 = 80 + 60*Math.sin(endAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    const path = `M 80 80 L ${x1} ${y1} A 60 60 0 ${large} 1 ${x2} ${y2} Z`;
+    startAngle = endAngle;
+    return `<path d="${path}" fill="${d.color}" stroke="#0d1426" stroke-width="2"/>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// POS STATE
+// ═══════════════════════════════════════════════
+let posState = {
+  cart: [],
+  searchQ: '',
+  selectedCustomerId: 'walkin',
+  discountType: 'fixed',
+  discount: 0,
+};
+
+function renderPOS() {
+  const products = DB.products;
+  const filtered = products.filter(p=>
+    p.name.toLowerCase().includes(posState.searchQ.toLowerCase()) ||
+    p.sku.toLowerCase().includes(posState.searchQ.toLowerCase()) ||
+    p.barcode.includes(posState.searchQ)
+  );
+  const cart = posState.cart;
+  const subtotal = cart.reduce((a,i)=>a+i.price*i.qty,0);
+  const discountAmt = posState.discountType==='percent' ? Math.round(subtotal*(posState.discount||0)/100) : (posState.discount||0);
+  const taxable = Math.max(0,subtotal-discountAmt);
+  const tax = Math.round(taxable*0.05);
+  const total = taxable+tax;
+
+  return `
+  <div id="pos-layout">
+    <div id="pos-products">
+      <!-- Search bar -->
+      <div class="card p-3 flex gap-3" style="flex-shrink:0">
+        <div class="search-wrap flex-1">
+          <span class="search-icon">🔍</span>
+          <input class="input" id="pos-search" placeholder="Search products or scan barcode (Enter)" value="${posState.searchQ}" oninput="posState.searchQ=this.value;renderPOS_products()">
+        </div>
+        <div class="flex items-center gap-2" style="flex-shrink:0">
+          <span class="text-xs text-muted">Customer:</span>
+          <select class="input" style="width:auto;padding:8px 12px" id="pos-customer" onchange="posState.selectedCustomerId=this.value">
+            <option value="walkin" ${posState.selectedCustomerId==='walkin'?'selected':''}>Walk-in</option>
+            ${DB.customers.map(c=>`<option value="${c.id}" ${posState.selectedCustomerId==c.id?'selected':''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <!-- Product grid -->
+      <div style="flex:1;overflow-y:auto;">
+        <div class="product-grid" id="pos-grid">
+          ${filtered.map(p=>`
+          <div class="product-card ${p.stock===0?'out-of-stock':''}" onclick="${p.stock===0?'toast("Out of stock!","error")':'addToCart('+p.id+')'}">
+            <div class="product-emoji">${p.emoji||'📦'}</div>
+            <div class="product-name">${p.name}</div>
+            <div class="product-sku">${p.sku}</div>
+            <div class="product-price">${fmt(p.price)}</div>
+            <span class="badge ${p.stock===0?'badge-red':p.stock<=p.reorderLevel?'badge-amber':'badge-green'}">${p.stock===0?'OUT':p.stock<=p.reorderLevel?'Low: '+p.stock:p.stock+' in stock'}</span>
+          </div>`).join('')}
+          ${filtered.length===0?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📦</div><div class="title">No products found</div></div>':''}
+        </div>
+      </div>
+    </div>
+
+    <!-- CART -->
+    <div id="pos-cart">
+      <div class="cart-header">
+        <span class="font-bold text-white">Current Sale</span>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-blue">${cart.length} items</span>
+          ${cart.length>0?'<button class="btn btn-sm" style="color:var(--danger);background:var(--danger-dim)" onclick="posState.cart=[];renderPOS_cart()">Clear</button>':''}
+        </div>
+      </div>
+
+      <div class="cart-items" id="cart-items">
+        ${cart.length===0?'<div class="cart-empty"><div style="font-size:48px">🛒</div><p>Cart is empty</p><p class="text-xs mt-2">Click a product to add</p></div>':
+          cart.map(item=>`
+          <div class="cart-item">
+            <div class="cart-item-emoji">${item.emoji||'📦'}</div>
+            <div class="cart-item-info min-w-0">
+              <div class="text-sm font-bold text-white truncate">${item.name}</div>
+              <div class="text-xs text-muted">${fmt(item.price)} each</div>
+            </div>
+            <div class="qty-ctrl">
+              <button class="qty-btn qty-dec" onclick="updateQty(${item.id},-1)">−</button>
+              <span class="qty-val">${item.qty}</span>
+              <button class="qty-btn qty-inc" onclick="updateQty(${item.id},1)">+</button>
+            </div>
+            <div class="text-sm font-bold text-secondary" style="width:64px;text-align:right">${fmt(item.price*item.qty)}</div>
+            <button class="btn-icon" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer" onclick="removeFromCart(${item.id})">🗑</button>
+          </div>`).join('')}
+      </div>
+
+      <div class="cart-footer">
+        <div class="discount-row">
+          <select class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="posState.discountType=this.value;renderPOS_totals()">
+            <option value="fixed" ${posState.discountType==='fixed'?'selected':''}>Fixed</option>
+            <option value="percent" ${posState.discountType==='percent'?'selected':''}>% Disc</option>
+          </select>
+          <input class="input flex-1" type="number" placeholder="Discount" value="${posState.discount||''}" oninput="posState.discount=+this.value||0;renderPOS_totals()">
+        </div>
+        <div id="pos-totals">
+          ${renderPOSTotals(subtotal,discountAmt,tax,total)}
+        </div>
+        <button class="btn btn-primary w-full" onclick="openPayScreen()" ${cart.length===0?'disabled':''} style="margin-top:12px;padding:14px;font-size:14px">
+          💳 Proceed to Payment
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPOSTotals(sub,disc,tax,total) {
+  return `
+  <div class="totals-row"><span>Subtotal</span><span>${fmt(sub)}</span></div>
+  <div class="totals-row" style="color:var(--secondary)"><span>Discount</span><span>−${fmt(disc)}</span></div>
+  <div class="totals-row"><span>Tax (5%)</span><span>${fmt(tax)}</span></div>
+  <div class="totals-total"><span>TOTAL</span><span class="text-primary">${fmt(total)}</span></div>`;
+}
+
+function renderPOS_products() {
+  const products = DB.products;
+  const filtered = products.filter(p=>
+    p.name.toLowerCase().includes(posState.searchQ.toLowerCase()) ||
+    p.sku.toLowerCase().includes(posState.searchQ.toLowerCase()) ||
+    p.barcode.includes(posState.searchQ)
+  );
+  const grid = document.getElementById('pos-grid');
+  if(!grid) return;
+  grid.innerHTML = filtered.map(p=>`
+  <div class="product-card ${p.stock===0?'out-of-stock':''}" onclick="${p.stock===0?'toast("Out of stock!","error")':'addToCart('+p.id+')'}">
+    <div class="product-emoji">${p.emoji||'📦'}</div>
+    <div class="product-name">${p.name}</div>
+    <div class="product-sku">${p.sku}</div>
+    <div class="product-price">${fmt(p.price)}</div>
+    <span class="badge ${p.stock===0?'badge-red':p.stock<=p.reorderLevel?'badge-amber':'badge-green'}">${p.stock===0?'OUT':p.stock<=p.reorderLevel?'Low: '+p.stock:p.stock+' in stock'}</span>
+  </div>`).join('') || '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📦</div><div class="title">No products found</div></div>';
+}
+
+function renderPOS_cart() {
+  const cart = posState.cart;
+  const items = document.getElementById('cart-items');
+  if(!items) return;
+  items.innerHTML = cart.length===0?'<div class="cart-empty"><div style="font-size:48px">🛒</div><p>Cart is empty</p><p class="text-xs mt-2">Click a product to add</p></div>':
+    cart.map(item=>`
+    <div class="cart-item">
+      <div class="cart-item-emoji">${item.emoji||'📦'}</div>
+      <div class="cart-item-info min-w-0">
+        <div class="text-sm font-bold text-white truncate">${item.name}</div>
+        <div class="text-xs text-muted">${fmt(item.price)} each</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn qty-dec" onclick="updateQty(${item.id},-1)">−</button>
+        <span class="qty-val">${item.qty}</span>
+        <button class="qty-btn qty-inc" onclick="updateQty(${item.id},1)">+</button>
+      </div>
+      <div class="text-sm font-bold text-secondary" style="width:64px;text-align:right">${fmt(item.price*item.qty)}</div>
+      <button class="btn-icon" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer" onclick="removeFromCart(${item.id})">🗑</button>
+    </div>`).join('');
+
+  renderPOS_totals();
+
+  const hdr = document.querySelector('.cart-header');
+  if(hdr) hdr.innerHTML = `
+    <span class="font-bold text-white">Current Sale</span>
+    <div class="flex items-center gap-2">
+      <span class="badge badge-blue">${cart.length} items</span>
+      ${cart.length>0?'<button class="btn btn-sm" style="color:var(--danger);background:var(--danger-dim)" onclick="posState.cart=[];renderPOS_cart()">Clear</button>':''}
+    </div>`;
+
+  const payBtn = document.querySelector('#pos-cart .btn-primary');
+  if(payBtn) payBtn.disabled = cart.length===0;
+}
+
+function renderPOS_totals() {
+  const cart = posState.cart;
+  const subtotal = cart.reduce((a,i)=>a+i.price*i.qty,0);
+  const discountAmt = posState.discountType==='percent' ? Math.round(subtotal*(posState.discount||0)/100) : (posState.discount||0);
+  const taxable = Math.max(0,subtotal-discountAmt);
+  const tax = Math.round(taxable*0.05);
+  const total = taxable+tax;
+  const t = document.getElementById('pos-totals');
+  if(t) t.innerHTML = renderPOSTotals(subtotal,discountAmt,tax,total);
+}
+
+function addToCart(id) {
+  const product = DB.products.find(p=>p.id===id);
+  if(!product) return;
+  const existing = posState.cart.find(i=>i.id===id);
+  if(existing) existing.qty++;
+  else posState.cart.push({...product, qty:1});
+  toast(`${product.name.slice(0,20)} added`);
+  renderPOS_cart();
+}
+
+function updateQty(id, delta) {
+  posState.cart = posState.cart.map(i=>i.id===id?{...i,qty:Math.max(0,i.qty+delta)}:i).filter(i=>i.qty>0);
+  renderPOS_cart();
+}
+
+function removeFromCart(id) {
+  posState.cart = posState.cart.filter(i=>i.id!==id);
+  renderPOS_cart();
+}
+
+function openPayScreen() {
+  if(posState.cart.length===0) return;
+  const cart = posState.cart;
+  const subtotal = cart.reduce((a,i)=>a+i.price*i.qty,0);
+  const discountAmt = posState.discountType==='percent' ? Math.round(subtotal*(posState.discount||0)/100) : (posState.discount||0);
+  const taxable = Math.max(0,subtotal-discountAmt);
+  const tax = Math.round(taxable*0.05);
+  const total = taxable+tax;
+
+  const cust = posState.selectedCustomerId!=='walkin' ? DB.customers.find(c=>c.id==posState.selectedCustomerId) : null;
+
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="pay-modal">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-header">
+        <span class="font-bold text-white text-lg">💳 Process Payment</span>
+        <button class="close-btn" onclick="document.getElementById('pay-modal').remove()">✕</button>
+      </div>
+      <div class="modal-body space-y">
+        <div style="background:var(--primary-dim);border:1px solid rgba(59,130,246,0.2);border-radius:16px;padding:20px;text-align:center">
+          <div class="text-xs text-muted mb-1" style="letter-spacing:0.1em;text-transform:uppercase">Amount Due</div>
+          <div style="font-size:40px;font-weight:900;color:var(--primary)">${fmt(total)}</div>
+          ${discountAmt>0?`<div class="text-xs text-muted mt-1">Subtotal ${fmt(subtotal)} · discount −${fmt(discountAmt)} · tax ${fmt(tax)}</div>`:''}
+        </div>
+
+        ${cust ? `<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap-10px">
+          <span style="font-size:20px;margin-right:10px">🏅</span>
+          <div class="flex-1"><div class="text-sm font-bold" style="color:var(--accent)">${cust.name} — ${cust.loyaltyPoints} loyalty pts</div><div class="text-xs text-muted">Points earned this sale: ${Math.floor(total/10)}</div></div>
+        </div>` : ''}
+
+        <div>
+          <div class="input-label">Payment Method</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="pay-methods">
+            ${['Cash','Card','Bank Transfer','Wallet'].map((m,i)=>`
+            <button class="btn ${i===0?'btn-primary':'btn-ghost'}" id="pm-${m.replace(' ','-')}" onclick="selectPayMethod('${m}')">${m==='Cash'?'💵':m==='Card'?'💳':m==='Bank Transfer'?'🏦':'📱'} ${m}</button>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <div class="input-label">Amount Received</div>
+          <input class="input" type="number" id="amount-paid" placeholder="Enter amount (min ${total})" style="text-align:center;font-size:24px;font-weight:900;padding:16px" oninput="updateChange(${total})">
+        </div>
+
+        <div id="change-display"></div>
+
+        <div class="modal-footer">
+          <button class="btn btn-ghost flex-1" onclick="document.getElementById('pay-modal').remove()">Cancel</button>
+          <button class="btn btn-secondary" style="flex:2" id="complete-btn" onclick="completeSale(${subtotal},${discountAmt},${tax},${total})">✓ Complete Sale</button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+let selectedPayMethod = 'Cash';
+function selectPayMethod(m) {
+  selectedPayMethod = m;
+  ['Cash','Card','Bank Transfer','Wallet'].forEach(pm=>{
+    const btn = document.getElementById('pm-'+pm.replace(' ','-'));
+    if(btn) { btn.className = 'btn '+(pm===m?'btn-primary':'btn-ghost'); }
+  });
+}
+
+function updateChange(total) {
+  const paid = +document.getElementById('amount-paid').value||0;
+  const change = Math.max(0, paid-total);
+  const d = document.getElementById('change-display');
+  if(!d) return;
+  if(paid>=total) {
+    d.innerHTML = `<div style="background:var(--secondary-dim);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center"><span class="font-bold text-secondary">Change to Return</span><span class="font-black text-secondary" style="font-size:20px">${fmt(change)}</span></div>`;
+  } else {
+    d.innerHTML = '';
+  }
+}
+
+function completeSale(subtotal, discountAmt, tax, total) {
+  const paid = +document.getElementById('amount-paid').value||0;
+  if(paid<total) { toast('Insufficient payment amount','error'); return; }
+  const change = Math.max(0,paid-total);
+
+  const customerId = posState.selectedCustomerId==='walkin' ? null : +posState.selectedCustomerId;
+  const cust = customerId ? DB.customers.find(c=>c.id===customerId) : null;
+  const invoiceNo = genInvoice();
+
+  const sale = {
+    id: nextId('sales'),
+    invoiceNo,
+    customerId,
+    customerName: cust ? cust.name : null,
+    subtotal, discountAmount: discountAmt, redeemedPoints: 0,
+    tax, total, amountPaid: paid, change,
+    paymentMethod: selectedPayMethod,
+    items: posState.cart.map(i=>({productId:i.id,productName:i.name,qty:i.qty,unitPrice:i.price,lineTotal:i.price*i.qty})),
+    createdAt: new Date().toISOString()
+  };
+
+  DB.sales.push(sale);
+
+  // Update stock
+  posState.cart.forEach(i=>{
+    const p = DB.products.find(p=>p.id===i.id);
+    if(p) p.stock = Math.max(0, p.stock - i.qty);
+  });
+
+  // Award loyalty points
+  if(cust) {
+    cust.loyaltyPoints = (cust.loyaltyPoints||0) + Math.floor(total/10);
+    cust.totalPurchases = (cust.totalPurchases||0) + total;
+  }
+
+  save();
+
+  document.getElementById('pay-modal')?.remove();
+  showReceipt(sale);
+
+  posState.cart = [];
+  posState.discount = 0;
+  toast('Sale completed successfully!');
+}
+
+function showReceipt(sale) {
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="receipt-modal">
+    <div class="receipt-wrap">
+      <div class="receipt-header">
+        <div class="receipt-title">SUPERMART</div>
+        <div style="font-size:11px;color:#666">Gulshan Branch, Karachi</div>
+        <div style="font-size:11px;color:#666">Tel: 021-34567890</div>
+      </div>
+      <div style="font-size:11px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between"><span>Invoice#</span><span>${sale.invoiceNo}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Date</span><span>${new Date().toLocaleDateString('en-PK')}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Time</span><span>${new Date().toLocaleTimeString('en-PK')}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Customer</span><span>${sale.customerName||'Walk-in'}</span></div>
+      </div>
+      <table class="receipt-table" style="border-top:1px dashed #aaa;border-bottom:1px dashed #aaa;padding:8px 0;margin:8px 0">
+        <thead><tr style="color:#666;font-size:10px"><th>ITEM</th><th>QTY</th><th>PRICE</th><th style="text-align:right">TOTAL</th></tr></thead>
+        <tbody>${sale.items.map(i=>`<tr><td style="max-width:120px;overflow:hidden">${i.productName}</td><td>${i.qty}</td><td>${fmt(i.unitPrice)}</td><td style="text-align:right">${fmt(i.lineTotal)}</td></tr>`).join('')}</tbody>
+      </table>
+      <div style="font-size:11px">
+        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${fmt(sale.subtotal)}</span></div>
+        ${sale.discountAmount>0?`<div style="display:flex;justify-content:space-between;color:green"><span>Discount</span><span>−${fmt(sale.discountAmount)}</span></div>`:''}
+        <div style="display:flex;justify-content:space-between"><span>Tax (5%)</span><span>${fmt(sale.tax)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:900;font-size:14px;border-top:1px solid black;margin-top:6px;padding-top:6px"><span>GRAND TOTAL</span><span>${fmt(sale.total)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Paid (${sale.paymentMethod})</span><span>${fmt(sale.amountPaid)}</span></div>
+        ${sale.change>0?`<div style="display:flex;justify-content:space-between"><span>Change</span><span>${fmt(sale.change)}</span></div>`:''}
+      </div>
+      <div class="receipt-footer">
+        <div style="font-weight:700;margin-bottom:4px">★ THANK YOU FOR SHOPPING ★</div>
+        <div>Visit Again! Earn Loyalty Points.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="window.print()" class="btn btn-primary flex-1" style="background:black;border-radius:6px">🖨 Print</button>
+        <button onclick="document.getElementById('receipt-modal').remove()" class="btn btn-ghost flex-1" style="background:#f5f5f5;color:black;border-radius:6px">Close</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+// ═══════════════════════════════════════════════
+// INVENTORY
+// ═══════════════════════════════════════════════
+let invState = { search: '', category: 'All' };
+
+function renderInventory() {
+  const products = DB.products;
+  const categories = ['All', ...[...new Set(products.map(p=>p.category))]];
+  const filtered = products.filter(p=>{
+    const matchCat = invState.category==='All' || p.category===invState.category;
+    const matchSearch = p.name.toLowerCase().includes(invState.search.toLowerCase()) || p.sku.toLowerCase().includes(invState.search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  return `
+  <div style="max-width:1400px;margin:0 auto;padding-bottom:40px;" class="space-y">
+    <div class="flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-black text-white">Inventory Management</h2>
+        <p class="text-sm text-muted mt-1">${products.length} products · ${products.reduce((s,p)=>s+p.stock,0)} total units</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm">⬇ Export</button>
+        <button class="btn btn-primary btn-sm" onclick="openProductForm()">＋ Add Product</button>
+      </div>
+    </div>
+
+    <div class="grid-4">
+      <div class="inv-stat b-primary"><div class="stat-label">Total Products</div><div class="stat-value text-primary">${products.length}</div></div>
+      <div class="inv-stat b-secondary"><div class="stat-label">In Stock</div><div class="stat-value text-secondary">${products.filter(p=>p.stock>p.reorderLevel).length}</div></div>
+      <div class="inv-stat b-accent"><div class="stat-label">Low Stock</div><div class="stat-value text-accent">${products.filter(p=>p.stock>0&&p.stock<=p.reorderLevel).length}</div></div>
+      <div class="inv-stat b-danger"><div class="stat-label">Out of Stock</div><div class="stat-value text-danger">${products.filter(p=>p.stock===0).length}</div></div>
+    </div>
+
+    <div class="card">
+      <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <div class="search-wrap" style="min-width:250px;flex:1">
+          <span class="search-icon">🔍</span>
+          <input class="input" placeholder="Search products..." value="${invState.search}" oninput="invState.search=this.value;document.getElementById('inv-table').outerHTML=renderInvTable()" id="inv-search">
+        </div>
+        <div class="pill-row">
+          ${categories.map(c=>`<button class="pill ${invState.category===c?'active':''}" onclick="invState.category='${c}';renderPage()">${c}</button>`).join('')}
+        </div>
+      </div>
+      <div class="table-wrap" id="inv-table">
+        ${renderInvTable()}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderInvTable() {
+  const products = DB.products;
+  const filtered = products.filter(p=>{
+    const matchCat = invState.category==='All' || p.category===invState.category;
+    const matchSearch = p.name.toLowerCase().includes(invState.search.toLowerCase()) || p.sku.toLowerCase().includes(invState.search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+  return `<div class="table-wrap" id="inv-table"><table>
+    <thead><tr>
+      <th>Product</th><th>SKU</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Status</th><th class="text-right">Actions</th>
+    </tr></thead>
+    <tbody>
+    ${filtered.map(p=>`
+    <tr>
+      <td><div class="flex items-center gap-3"><span style="font-size:24px">${p.emoji||'📦'}</span><div><div class="font-bold text-white">${p.name}</div><div class="text-xs text-muted">${p.barcode}</div></div></div></td>
+      <td><span style="font-family:monospace;color:var(--muted);font-size:12px">${p.sku}</span></td>
+      <td><span class="badge badge-purple">${p.category}</span></td>
+      <td class="text-muted">${fmt(p.cost)}</td>
+      <td class="font-bold text-primary">${fmt(p.price)}</td>
+      <td><div class="font-bold ${p.stock===0?'text-danger':p.stock<=p.reorderLevel?'text-accent':'text-secondary'}">${p.stock}</div><div class="text-xs text-muted">min: ${p.reorderLevel}</div></td>
+      <td><span class="badge ${p.stock===0?'badge-red':p.stock<=p.reorderLevel?'badge-amber':'badge-green'}">${p.stock===0?'Out of Stock':p.stock<=p.reorderLevel?'Low Stock':'In Stock'}</span></td>
+      <td class="text-right">
+        <div class="flex justify-end gap-2">
+          <button class="btn-icon btn-icon-primary" onclick="openProductForm(${p.id})">✏</button>
+          <button class="btn-icon btn-icon-danger" onclick="deleteProduct(${p.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('')}
+    ${filtered.length===0?'<tr><td colspan="8"><div class="empty-state">No inventory matching criteria</div></td></tr>':''}
+    </tbody>
+  </table></div>`;
+}
+
+function openProductForm(id) {
+  const product = id ? DB.products.find(p=>p.id===id) : null;
+  const emojis = ["🥛","🍞","🧃","🥤","🍫","🛒","🧴","🧼","🥚","🧈","🍚","🧂","🫙","🥫","🍳","🧹","🧺","💊","📦","🪥","💧","🧋","🍕","🧀","🥩","🍎","🍌","🥕","🫛","🍅"];
+  const cats = ["Dairy","Bakery","Beverages","Snacks","Meat","Vegetables","Fruits","Frozen","Household","Personal Care","Pharmacy","Other"];
+  const sel = product?.emoji||'📦';
+
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <div class="flex items-center gap-3">
+          <div style="width:40px;height:40px;border-radius:50%;background:${product?'linear-gradient(135deg,var(--primary),var(--purple))':'var(--primary-dim)'};display:flex;align-items:center;justify-content:center;font-size:${product?'18px':'22px'};color:${product?'white':'var(--primary)'}">
+            ${product?product.name.charAt(0).toUpperCase():'＋'}
+          </div>
+          <div>
+            <div class="font-bold text-white">${product?'Edit Product':'Add New Product'}</div>
+            <div class="text-xs text-muted">${product?product.sku:'Enter product details'}</div>
+          </div>
+        </div>
+        <button class="close-btn" onclick="document.getElementById('product-modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="input-label">Choose Emoji</label>
+          <div class="emoji-picker" id="emoji-picker">
+            ${emojis.map(e=>`<div class="emoji-opt ${e===sel?'selected':''}" onclick="selectEmoji('${e}')">${e}</div>`).join('')}
+          </div>
+          <input type="hidden" id="form-emoji" value="${sel}">
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="input-label">Product Name *</label><input class="input" id="form-name" value="${product?.name||''}" placeholder="e.g. Full Cream Milk 1L"></div>
+          <div class="form-group"><label class="input-label">Brand</label><input class="input" id="form-brand" value="${product?.brand||''}" placeholder="e.g. Olpers"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="input-label">SKU *</label><input class="input" id="form-sku" value="${product?.sku||''}" placeholder="MLK-001"></div>
+          <div class="form-group"><label class="input-label">Barcode</label><input class="input" id="form-barcode" value="${product?.barcode||''}" placeholder="1234567890123"></div>
+        </div>
+        <div class="form-group"><label class="input-label">Category *</label>
+          <select class="input" id="form-category">${cats.map(c=>`<option value="${c}" ${product?.category===c?'selected':''}>${c}</option>`).join('')}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="input-label">Cost Price *</label><input class="input" type="number" id="form-cost" value="${product?.cost||''}" placeholder="0"></div>
+          <div class="form-group"><label class="input-label">Selling Price *</label><input class="input" type="number" id="form-price" value="${product?.price||''}" placeholder="0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="input-label">Stock *</label><input class="input" type="number" id="form-stock" value="${product?.stock||''}" placeholder="0"></div>
+          <div class="form-group"><label class="input-label">Reorder Level</label><input class="input" type="number" id="form-reorder" value="${product?.reorderLevel||5}" placeholder="5"></div>
+        </div>
+        <div class="modal-footer mt-4">
+          <button class="btn btn-ghost flex-1" onclick="document.getElementById('product-modal').remove()">Cancel</button>
+          <button class="btn btn-primary flex-1" onclick="saveProduct(${product?.id||'null'})">
+            ${product?'✓ Save Changes':'＋ Add Product'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+function selectEmoji(e) {
+  document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.remove('selected'));
+  event.target.classList.add('selected');
+  document.getElementById('form-emoji').value = e;
+}
+
+function saveProduct(id) {
+  const data = {
+    name: document.getElementById('form-name').value.trim(),
+    brand: document.getElementById('form-brand').value.trim(),
+    sku: document.getElementById('form-sku').value.trim(),
+    barcode: document.getElementById('form-barcode').value.trim(),
+    category: document.getElementById('form-category').value,
+    cost: +document.getElementById('form-cost').value||0,
+    price: +document.getElementById('form-price').value||0,
+    stock: +document.getElementById('form-stock').value||0,
+    reorderLevel: +document.getElementById('form-reorder').value||5,
+    emoji: document.getElementById('form-emoji').value,
+  };
+  if(!data.name||!data.sku) { toast('Name and SKU are required','error'); return; }
+  if(!data.price) { toast('Price is required','error'); return; }
+
+  if(id) {
+    const idx = DB.products.findIndex(p=>p.id===id);
+    if(idx>-1) DB.products[idx] = {...DB.products[idx],...data};
+    toast('Product updated!');
+  } else {
+    DB.products.push({id:nextId('products'),...data,createdAt:new Date().toISOString()});
+    toast('Product added!');
+  }
+  save();
+  document.getElementById('product-modal').remove();
+  renderPage();
+}
+
+function deleteProduct(id) {
+  const p = DB.products.find(p=>p.id===id);
+  if(!confirm(`Delete "${p?.name}"? This cannot be undone.`)) return;
+  DB.products = DB.products.filter(p=>p.id!==id);
+  save(); toast('Product deleted');
+  renderPage();
+}
+
+// ═══════════════════════════════════════════════
+// CUSTOMERS
+// ═══════════════════════════════════════════════
+let custState = { search: '', tier: 'All' };
+
+function renderCustomers() {
+  const tiers = ['All','Bronze','Silver','Gold'];
+  const tierActiveColors = {Bronze:'background:orange;color:white',Silver:'background:#94a3b8;color:black',Gold:'background:var(--accent);color:black'};
+  const tierBorder = {Bronze:'rgba(251,146,60,0.2)',Silver:'rgba(148,163,184,0.2)',Gold:'rgba(245,158,11,0.2)'};
+  const tierBg = {Bronze:'rgba(251,146,60,0.1)',Silver:'rgba(148,163,184,0.1)',Gold:'rgba(245,158,11,0.1)'};
+  const tierTextColor = {Bronze:'#fb923c',Silver:'#94a3b8',Gold:'var(--accent)'};
+
+  const filtered = DB.customers.filter(c=>{
+    const q = custState.search.toLowerCase();
+    const matchS = !custState.search || c.name.toLowerCase().includes(q) || c.phone.includes(custState.search) || (c.email||'').toLowerCase().includes(q);
+    const matchT = custState.tier==='All' || custTier(c.loyaltyPoints||0)===custState.tier;
+    return matchS && matchT;
+  });
+
+  return `
+  <div style="max-width:1400px;margin:0 auto;padding-bottom:40px;" class="space-y">
+    <div class="flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-black text-white">Customer Management</h2>
+        <p class="text-sm text-muted mt-1">${DB.customers.length} registered · ${DB.customers.reduce((s,c)=>s+(c.loyaltyPoints||0),0).toLocaleString()} total loyalty pts</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openCustomerForm()">＋ Add Customer</button>
+    </div>
+
+    <div class="flex gap-3 flex-wrap items-center">
+      <div class="search-wrap flex-1" style="min-width:240px">
+        <span class="search-icon">🔍</span>
+        <input class="input" placeholder="Search by name, phone, or email…" value="${custState.search}" oninput="custState.search=this.value;renderPage()">
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Tier:</span>
+        ${tiers.map(t=>`<button class="pill ${custState.tier===t?(t==='All'?'active':''):''}" style="${custState.tier===t&&t!=='All'?tierActiveColors[t]:''}" onclick="custState.tier='${t}';renderPage()">${t==='All'?'All':tierEmoji(t)+' '+t}</button>`).join('')}
+      </div>
+      ${custState.search||custState.tier!=='All'?`<button class="btn btn-sm" style="color:var(--danger);background:var(--danger-dim)" onclick="custState={search:'',tier:'All'};renderPage()">Clear filters</button>`:''}
+    </div>
+
+    <div class="customer-grid">
+      ${filtered.map(c=>{
+        const tier = custTier(c.loyaltyPoints||0);
+        return `
+        <div class="customer-card">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="avatar"><span>${c.name.charAt(0).toUpperCase()}</span><span class="tier-badge">${tierEmoji(tier)}</span></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <div class="font-bold text-white truncate">${c.name}</div>
+                <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid ${tierBorder[tier]};background:${tierBg[tier]};color:${tierTextColor[tier]};flex-shrink:0">${tier.toUpperCase()}</span>
+              </div>
+              <div class="text-xs text-muted mt-1">${c.phone}</div>
+              ${c.email?`<div class="text-xs text-muted truncate">${c.email}</div>`:''}
+            </div>
+            <div class="flex gap-1">
+              <button class="btn-icon btn-icon-amber" title="History" onclick="showCustomerHistory(${c.id})">📋</button>
+              <button class="btn-icon btn-icon-primary" title="Edit" onclick="openCustomerForm(${c.id})">✏</button>
+              <button class="btn-icon btn-icon-danger" title="Delete" onclick="deleteCustomer(${c.id})">🗑</button>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:10px">
+            <div style="background:var(--primary-dim);border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:10px">
+              <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Total Spent</div>
+              <div class="font-black text-primary" style="font-size:14px">${fmt(c.totalPurchases||0)}</div>
+            </div>
+            <div style="background:var(--accent-dim);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:10px">
+              <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Loyalty Pts</div>
+              <div class="font-black text-accent" style="font-size:14px">${c.loyaltyPoints||0} pts</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+      ${DB.customers.length===0?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">👥</div><div class="title">No customers yet</div><p>Click "Add Customer" to register your first customer</p></div>':''}
+      ${DB.customers.length>0&&filtered.length===0?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><div class="title">No matches found</div><p>Try adjusting your search or tier filter</p></div>':''}
+    </div>
+  </div>`;
+}
+
+function openCustomerForm(id) {
+  const cust = id ? DB.customers.find(c=>c.id===id) : null;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="customer-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="flex items-center gap-3">
+          <div style="width:40px;height:40px;border-radius:50%;background:${cust?'linear-gradient(135deg,var(--primary),var(--purple))':'var(--primary-dim)'};display:flex;align-items:center;justify-content:center;font-size:${cust?'18px':'22px'};color:${cust?'white':'var(--primary)'}">
+            ${cust?cust.name.charAt(0).toUpperCase():'＋'}
+          </div>
+          <div>
+            <div class="font-bold text-white">${cust?'Edit Customer':'Add New Customer'}</div>
+            <div class="text-xs text-muted">${cust?cust.loyaltyPoints+' loyalty pts':'Register a new customer'}</div>
+          </div>
+        </div>
+        <button class="close-btn" onclick="document.getElementById('customer-modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label class="input-label">Full Name *</label><input class="input" id="cust-name" value="${cust?.name||''}" placeholder="e.g. Ahmed Khan"></div>
+        <div class="form-group"><label class="input-label">Phone Number *</label><input class="input" id="cust-phone" value="${cust?.phone||''}" placeholder="e.g. 0300-1234567"></div>
+        <div class="form-group"><label class="input-label">Email Address</label><input class="input" type="email" id="cust-email" value="${cust?.email||''}" placeholder="optional"></div>
+        ${cust?`<div class="grid-2" style="gap:10px;margin-top:8px">
+          <div style="background:var(--primary-dim);border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:12px">
+            <div class="text-xs text-muted mb-1">Total Spent</div>
+            <div class="font-black text-primary">${fmt(cust.totalPurchases||0)}</div>
+          </div>
+          <div style="background:var(--accent-dim);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:12px">
+            <div class="text-xs text-muted mb-1">Loyalty Points</div>
+            <div class="font-black text-accent">${cust.loyaltyPoints||0} pts</div>
+          </div>
+        </div>`:''}
+        <div class="modal-footer mt-4">
+          <button class="btn btn-ghost flex-1" onclick="document.getElementById('customer-modal').remove()">Cancel</button>
+          <button class="btn btn-primary flex-1" onclick="saveCustomer(${cust?.id||'null'})">${cust?'✓ Save Changes':'＋ Add Customer'}</button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+function saveCustomer(id) {
+  const name = document.getElementById('cust-name').value.trim();
+  const phone = document.getElementById('cust-phone').value.trim();
+  const email = document.getElementById('cust-email').value.trim();
+  if(!name||!phone) { toast('Name and phone are required','error'); return; }
+  if(id) {
+    const idx = DB.customers.findIndex(c=>c.id===id);
+    if(idx>-1) DB.customers[idx] = {...DB.customers[idx], name, phone, email};
+    toast('Customer updated!');
+  } else {
+    DB.customers.push({id:nextId('customers'),name,phone,email,loyaltyPoints:0,totalPurchases:0,createdAt:new Date().toISOString()});
+    toast('Customer added!');
+  }
+  save();
+  document.getElementById('customer-modal').remove();
+  renderPage();
+}
+
+function deleteCustomer(id) {
+  const c = DB.customers.find(c=>c.id===id);
+  if(!confirm(`Delete customer "${c?.name}"?`)) return;
+  DB.customers = DB.customers.filter(c=>c.id!==id);
+  save(); toast('Customer deleted');
+  renderPage();
+}
+
+function showCustomerHistory(id) {
+  const cust = DB.customers.find(c=>c.id===id);
+  if(!cust) return;
+  const sales = DB.sales.filter(s=>s.customerId===id);
+  const totalSpent = sales.reduce((a,s)=>a+s.total,0);
+  const avgOrder = sales.length ? totalSpent/sales.length : 0;
+  const savedDiscount = sales.reduce((a,s)=>a+(s.discountAmount||0),0);
+
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="history-modal">
+    <div class="modal" style="max-width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column">
+      <div class="modal-header">
+        <div class="flex items-center gap-3">
+          <div class="avatar">${cust.name.charAt(0).toUpperCase()}</div>
+          <div><div class="font-bold text-white">${cust.name}</div><div class="text-xs text-muted">${cust.phone} · ${custTier(cust.loyaltyPoints||0)}</div></div>
+        </div>
+        <button class="close-btn" onclick="document.getElementById('history-modal').remove()">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)">
+        ${[['Total Purchases',sales.length,'text-white'],['Total Spent',fmt(totalSpent),'text-primary'],['Avg Order',fmt(avgOrder),'text-accent'],['Total Saved',fmt(savedDiscount),'text-secondary']].map(([l,v,c])=>`
+        <div style="padding:12px;text-align:center;border-right:1px solid var(--border)">
+          <div class="font-black ${c}" style="font-size:15px">${v}</div>
+          <div class="text-xs text-muted mt-1">${l}</div>
+        </div>`).join('')}
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px" class="space-y-sm">
+        ${sales.length===0?'<div class="empty-state"><div class="icon">🧾</div><div class="title">No purchases yet</div></div>':
+          sales.reverse().map(s=>`
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden">
+            <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center">
+              <div class="flex items-center gap-3">
+                <span style="font-size:18px">${s.paymentMethod==='Cash'?'💵':s.paymentMethod==='Card'?'💳':'🏦'}</span>
+                <div><div class="text-xs font-bold text-white">${s.invoiceNo}</div><div class="text-xs text-muted">${new Date(s.createdAt).toLocaleDateString('en-PK')}</div></div>
+              </div>
+              <div class="text-right"><div class="font-black text-white">${fmt(s.total)}</div>${s.discountAmount>0?`<div class="text-xs text-secondary">−${fmt(s.discountAmount)} saved</div>`:''}</div>
+            </div>
+            <div style="padding:10px 16px" class="space-y-sm">
+              ${s.items.map(i=>`<div class="flex justify-between text-xs text-muted"><span>${i.productName} × ${i.qty}</span><span class="text-white font-bold">${fmt(i.lineTotal)}</span></div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`);
+}
+
+// ═══════════════════════════════════════════════
+// EMPLOYEES
+// ═══════════════════════════════════════════════
+const ROLES = ["Manager","Cashier","Supervisor","Stock Boy","Security Guard","Accountant"];
+const SHIFTS = ["Morning","Afternoon","Evening","Night"];
+let empState = { search: '', role: 'All', shift: 'All' };
+
+function renderEmployees() {
+  const filtered = DB.employees.filter(e=>{
+    const matchS = e.name.toLowerCase().includes(empState.search.toLowerCase());
+    const matchR = empState.role==='All' || e.role===empState.role;
+    const matchSh = empState.shift==='All' || e.shift===empState.shift;
+    return matchS && matchR && matchSh;
+  });
+  const roleColors = {Manager:'role-manager',Supervisor:'role-supervisor',Cashier:'role-cashier','Stock Boy':'role-stockboy','Security Guard':'role-security',Accountant:'role-accountant'};
+
+  return `
+  <div style="max-width:1400px;margin:0 auto;padding-bottom:40px;" class="space-y">
+    <div class="flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-black text-white">Employee Management</h2>
+        <p class="text-sm text-muted mt-1">${DB.employees.length} staff · ${DB.employees.filter(e=>e.status==='active').length} active</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openEmployeeForm()">＋ Add Employee</button>
+    </div>
+
+    <div class="flex gap-3 flex-wrap items-center">
+      <div class="search-wrap flex-1" style="min-width:220px">
+        <span class="search-icon">🔍</span>
+        <input class="input" placeholder="Search by name…" value="${empState.search}" oninput="empState.search=this.value;renderPage()">
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Role:</span>
+        ${['All',...ROLES].map(r=>`<button class="pill ${empState.role===r?'active':''}" onclick="empState.role='${r}';renderPage()">${r}</button>`).join('')}
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Shift:</span>
+        ${['All',...SHIFTS].map(s=>`<button class="pill ${empState.shift===s?'active-green active':''}" onclick="empState.shift='${s}';renderPage()">${s}</button>`).join('')}
+      </div>
+      ${empState.search||empState.role!=='All'||empState.shift!=='All'?`<button class="btn btn-sm" style="color:var(--danger);background:var(--danger-dim)" onclick="empState={search:'',role:'All',shift:'All'};renderPage()">Clear</button>`:''}
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Role</th><th>Shift</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+          <tbody>
+          ${filtered.map(e=>`
+          <tr>
+            <td>
+              <div class="flex items-center gap-3">
+                <div class="avatar avatar-emp" style="width:32px;height:32px;min-width:32px;font-size:14px">${e.name.charAt(0).toUpperCase()}</div>
+                <span class="font-bold text-white">${e.name}</span>
+              </div>
+            </td>
+            <td><span style="font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.06)" class="${roleColors[e.role]||'text-primary'}">${e.role}</span></td>
+            <td class="text-muted">${e.shift}</td>
+            <td>
+              <div class="flex items-center gap-2">
+                <div style="width:8px;height:8px;border-radius:50%;background:${e.status==='active'?'var(--secondary)':'var(--muted)'}"></div>
+                <span style="text-transform:capitalize;color:${e.status==='active'?'white':'var(--muted)'}">${e.status}</span>
+              </div>
+            </td>
+            <td class="text-right">
+              <div class="flex justify-end gap-2">
+                <button class="btn-icon btn-icon-primary" onclick="openEmployeeForm(${e.id})">✏</button>
+                <button class="btn-icon btn-icon-danger" onclick="deleteEmployee(${e.id})">🗑</button>
+              </div>
+            </td>
+          </tr>`).join('')}
+          ${DB.employees.length===0?'<tr><td colspan="5"><div class="empty-state"><div class="icon">👷</div><div class="title">No employees yet</div></div></td></tr>':''}
+          ${DB.employees.length>0&&filtered.length===0?'<tr><td colspan="5"><div class="empty-state"><div class="icon">🔍</div><div class="title">No matches found</div></div></td></tr>':''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openEmployeeForm(id) {
+  const emp = id ? DB.employees.find(e=>e.id===id) : null;
+  const roleColors = {Manager:'var(--purple)',Supervisor:'#60a5fa',Cashier:'var(--primary)','Stock Boy':'var(--secondary)','Security Guard':'var(--accent)',Accountant:'#fb923c'};
+
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="modal-overlay" id="employee-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="flex items-center gap-3">
+          <div style="width:40px;height:40px;border-radius:50%;background:${emp?'linear-gradient(135deg,var(--secondary),#3b82f6)':'var(--secondary-dim)'};display:flex;align-items:center;justify-content:center;font-size:${emp?'18px':'22px'};color:${emp?'white':'var(--secondary)'}">
+            ${emp?emp.name.charAt(0).toUpperCase():'＋'}
+          </div>
+          <div>
+            <div class="font-bold text-white">${emp?'Edit Employee':'Add New Employee'}</div>
+            <div class="text-xs text-muted">${emp?emp.role+' · '+emp.shift+' shift':'Register a new staff member'}</div>
+          </div>
+        </div>
+        <button class="close-btn" onclick="document.getElementById('employee-modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label class="input-label">Full Name *</label><input class="input" id="emp-name" value="${emp?.name||''}" placeholder="e.g. Muhammad Bilal"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="input-label">Role *</label>
+            <select class="input" id="emp-role">${ROLES.map(r=>`<option value="${r}" ${emp?.role===r?'selected':''} style="color:${roleColors[r]}">${r}</option>`).join('')}</select>
+          </div>
+          <div class="form-group"><label class="input-label">Shift *</label>
+            <select class="input" id="emp-shift">${SHIFTS.map(s=>`<option value="${s}" ${emp?.shift===s?'selected':''}>${s}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="form-group"><label class="input-label">Status</label>
+          <div class="flex gap-2">
+            <button type="button" id="status-active" onclick="selectStatus('active')"
+              class="btn flex-1" style="${(!emp||emp.status==='active')?'background:var(--secondary-dim);border:1px solid var(--secondary);color:var(--secondary)':'background:var(--input-bg);border:1px solid rgba(255,255,255,0.1);color:var(--muted)'}">
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--secondary);margin-right:6px"></span>Active
+            </button>
+            <button type="button" id="status-inactive" onclick="selectStatus('inactive')"
+              class="btn flex-1" style="${emp?.status==='inactive'?'background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger)':'background:var(--input-bg);border:1px solid rgba(255,255,255,0.1);color:var(--muted)'}">
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--danger);margin-right:6px"></span>Inactive
+            </button>
+          </div>
+          <input type="hidden" id="emp-status" value="${emp?.status||'active'}">
+        </div>
+        <div class="modal-footer mt-4">
+          <button class="btn btn-ghost flex-1" onclick="document.getElementById('employee-modal').remove()">Cancel</button>
+          <button class="btn btn-secondary flex-1" onclick="saveEmployee(${emp?.id||'null'})">${emp?'✓ Save Changes':'＋ Add Employee'}</button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+function selectStatus(s) {
+  document.getElementById('emp-status').value = s;
+  document.getElementById('status-active').style.cssText = `flex:1;${s==='active'?'background:var(--secondary-dim);border:1px solid var(--secondary);color:var(--secondary)':'background:var(--input-bg);border:1px solid rgba(255,255,255,0.1);color:var(--muted)'}`;
+  document.getElementById('status-inactive').style.cssText = `flex:1;${s==='inactive'?'background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger)':'background:var(--input-bg);border:1px solid rgba(255,255,255,0.1);color:var(--muted)'}`;
+}
+
+function saveEmployee(id) {
+  const name = document.getElementById('emp-name').value.trim();
+  const role = document.getElementById('emp-role').value;
+  const shift = document.getElementById('emp-shift').value;
+  const status = document.getElementById('emp-status').value;
+  if(!name) { toast('Name is required','error'); return; }
+  if(id) {
+    const idx = DB.employees.findIndex(e=>e.id===id);
+    if(idx>-1) DB.employees[idx] = {...DB.employees[idx],name,role,shift,status};
+    toast('Employee updated!');
+  } else {
+    DB.employees.push({id:nextId('employees'),name,role,shift,status,createdAt:new Date().toISOString()});
+    toast('Employee added!');
+  }
+  save();
+  document.getElementById('employee-modal').remove();
+  renderPage();
+}
+
+function deleteEmployee(id) {
+  const e = DB.employees.find(e=>e.id===id);
+  if(!confirm(`Delete employee "${e?.name}"?`)) return;
+  DB.employees = DB.employees.filter(e=>e.id!==id);
+  save(); toast('Employee deleted');
+  renderPage();
+}
+
+// ═══════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════
+function renderReports() {
+  const weekDays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekData = Array.from({length:7},(_,i)=>{
+    const d = new Date(today); d.setDate(d.getDate()-6+i);
+    const daySales = DB.sales.filter(s=>new Date(s.createdAt).toDateString()===d.toDateString());
+    return { day: weekDays[d.getDay()===0?6:d.getDay()-1], sales: daySales.reduce((a,s)=>a+s.total,0)||Math.floor(Math.random()*8000+2000) };
+  });
+  const maxSales = Math.max(...weekData.map(d=>d.sales),1);
+
+  const reports = [
+    {label:"Daily Sales Report",desc:"Today's complete transaction log",icon:"📋"},
+    {label:"Weekly Summary",desc:"7-day performance overview",icon:"📊"},
+    {label:"Monthly P&L",desc:"Profit & loss statement",icon:"💰"},
+    {label:"Inventory Report",desc:"Stock levels & valuation",icon:"📦"},
+    {label:"Tax Report",desc:"GST/VAT breakdown",icon:"🧾"},
+    {label:"Employee Report",desc:"Staff performance & hours",icon:"👥"},
+  ];
+
+  return `
+  <div style="max-width:1400px;margin:0 auto;padding-bottom:40px;" class="space-y">
+    <div class="flex justify-between items-center">
+      <h2 class="text-xl font-black text-white">Reports & Analytics</h2>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm">🔽 Filter</button>
+        <button class="btn btn-secondary btn-sm">⬇ Export PDF</button>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      ${reports.map(r=>`
+      <div class="report-card">
+        <div style="font-size:32px;margin-bottom:12px">${r.icon}</div>
+        <div class="font-bold text-white mb-1">${r.label}</div>
+        <div class="text-xs text-muted mb-4">${r.desc}</div>
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-ghost flex-1" style="color:var(--primary);background:var(--primary-dim)">PDF</button>
+          <button class="btn btn-sm btn-ghost flex-1" style="color:var(--secondary);background:var(--secondary-dim)">Excel</button>
+          <button class="btn btn-sm btn-ghost flex-1" style="color:var(--accent);background:var(--accent-dim)">CSV</button>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-4">Sales Trend — Last 7 Days</h3>
+      <div style="height:260px">
+        <div class="simple-chart">
+          ${weekData.map(d=>`<div class="chart-bar" style="background:linear-gradient(to top,#3b82f6,#60a5fa);height:${Math.max(4,(d.sales/maxSales)*230)}px;" title="${d.day}: ${fmt(d.sales)}"></div>`).join('')}
+        </div>
+        <div class="chart-labels mt-2">${weekData.map(d=>`<div class="chart-label">${d.day}</div>`).join('')}</div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-3">Sales Summary</h3>
+        ${[['Total Sales',DB.sales.length,'text-white'],['Total Revenue',fmt(DB.sales.reduce((a,s)=>a+s.total,0)),'text-secondary'],['Total Tax',fmt(DB.sales.reduce((a,s)=>a+s.tax,0)),'text-accent'],['Discounts Given',fmt(DB.sales.reduce((a,s)=>a+(s.discountAmount||0),0)),'text-primary']].map(([l,v,c])=>`
+        <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border)">
+          <span class="text-muted text-sm">${l}</span>
+          <span class="font-bold ${c}">${v}</span>
+        </div>`).join('')}
+      </div>
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-3">Payment Methods</h3>
+        ${['Cash','Card','Bank Transfer','Wallet'].map(m=>{
+          const count = DB.sales.filter(s=>s.paymentMethod===m).length;
+          const pct = DB.sales.length ? Math.round(count/DB.sales.length*100) : 0;
+          return `<div class="flex justify-between items-center py-2" style="border-bottom:1px solid var(--border)">
+            <span class="text-muted text-sm">${m}</span>
+            <div class="flex items-center gap-2"><div style="width:60px;height:6px;border-radius:3px;background:rgba(255,255,255,0.05);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--primary);border-radius:3px"></div></div><span class="text-sm font-bold text-white">${count}</span></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="card p-5">
+        <h3 class="font-bold text-white mb-3">Inventory Overview</h3>
+        ${[['Total Products',DB.products.length,'text-primary'],['Total Stock',DB.products.reduce((a,p)=>a+p.stock,0)+' units','text-white'],['Inventory Value',fmt(DB.products.reduce((a,p)=>a+p.cost*p.stock,0)),'text-secondary'],['Low Stock Items',DB.products.filter(p=>p.stock>0&&p.stock<=p.reorderLevel).length,'text-accent']].map(([l,v,c])=>`
+        <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border)">
+          <span class="text-muted text-sm">${l}</span>
+          <span class="font-bold ${c}">${v}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════
+function renderSettings() {
+  const settingsSections = ["Store Info","Receipt","Tax & VAT","Payment Methods","Users & Roles","Barcode","Backup"];
+  return `
+  <div style="max-width:1000px;margin:0 auto;padding-bottom:40px;">
+    <h2 class="text-xl font-black text-white mb-6">Settings</h2>
+    <div class="flex gap-6" style="align-items:flex-start">
+      <div class="card p-3" style="width:220px;flex-shrink:0">
+        ${settingsSections.map((s,i)=>`<button class="w-full btn ${i===0?'btn-primary':'btn-ghost'} text-sm mb-1" style="justify-content:flex-start;text-align:left;font-weight:${i===0?'700':'500'}">${s}</button>`).join('')}
+      </div>
+      <div class="card p-6 flex-1">
+        <h3 class="text-lg font-bold text-white mb-5">Store Information</h3>
+        <div class="grid-2" style="gap:20px;margin-bottom:24px">
+          ${[['Store Name','SuperMart'],['Branch','Gulshan Branch'],['Address','Block 4, Gulshan-e-Iqbal, Karachi'],['Phone','021-34567890'],['NTN','1234567-8'],['GST Number','12-34-5678-901-23']].map(([l,v])=>`
+          <div>
+            <label class="input-label">${l}</label>
+            <input class="input" value="${v}">
+          </div>`).join('')}
+        </div>
+        <div style="padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" onclick="toast('Settings saved!')">✓ Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// EVENT ATTACHMENT
+// ═══════════════════════════════════════════════
+function attachEvents() {
+  // keyboard shortcut for barcode search
+  const inv = document.getElementById('inv-search');
+  if(inv) {
+    inv.oninput = function() {
+      invState.search = this.value;
+      const t = document.getElementById('inv-table');
+      if(t) t.outerHTML = renderInvTable();
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+renderPage();
+</script>
+</body>
+</html>
+
